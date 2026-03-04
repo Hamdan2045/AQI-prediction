@@ -1,0 +1,815 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AQI India — Air Quality Prediction</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}?v=8">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+
+<body>
+
+<!-- HEADER -->
+<header>
+    <div class="header-left">
+        <div class="logo">AQI</div>
+        <div>
+            <div class="header-title">India Air Quality</div>
+            <div class="header-sub">Real-time Monitoring & Prediction</div>
+        </div>
+    </div>
+    <div class="header-right">
+        <div class="live-badge">
+            <span class="live-dot"></span>
+            LIVE
+        </div>
+        <div id="current-time" class="current-time"></div>
+    </div>
+</header>
+
+<!-- CITY SELECTOR -->
+<div class="city-selector">
+    {% for city in cities %}
+    <button class="city-pill" onclick="selectCity('{{ city }}')">{{ city }}</button>
+    {% endfor %}
+</div>
+
+<!-- LIVE AQI SECTION -->
+<div class="live-section">
+
+    <!-- LEFT — AQI Display -->
+    <div class="aqi-display-card" id="aqi-display-card">
+        <div class="aqi-bg-wash" id="aqi-bg-wash"></div>
+        <div class="aqi-clouds">
+            <div class="cloud c1"></div>
+            <div class="cloud c2"></div>
+            <div class="cloud c3"></div>
+        </div>
+        <div class="india-skyline" id="city-skyline"></div>
+        <div class="aqi-character" id="aqi-character"></div>
+
+        <div class="aqi-card-content">
+            <div class="live-aqi-label">
+                <span class="live-dot" id="live-dot"></span> Live AQI
+            </div>
+            <div class="aqi-main-row">
+                <div>
+                    <div class="aqi-big-number" id="aqi-number">--</div>
+                    <div class="aqi-standard">India NAQI Standard</div>
+                </div>
+                <div style="text-align:right">
+                    <div style="font-size:11px;color:rgba(255,255,255,0.55);margin-bottom:5px;">Air Quality is</div>
+                    <div class="aqi-status-pill" id="aqi-status">Select City</div>
+                </div>
+            </div>
+            <div class="pm-row">
+                <span>PM2.5 : <strong id="pm25-display">--</strong> μg/m³</span>
+                <span>PM10 : <strong id="pm10-display">--</strong> μg/m³</span>
+            </div>
+            <div class="scale-wrapper">
+                <div class="scale-labels-top">
+                    <span>Good</span><span>Moderate</span><span>Poor</span>
+                    <span>Unhealthy</span><span>Severe</span><span>Hazardous</span>
+                </div>
+                <div class="scale-bar">
+                    <div class="scale-marker" id="scale-marker" style="left:0%"></div>
+                </div>
+                <div class="scale-labels-bottom">
+                    <span>0</span><span>50</span><span>100</span>
+                    <span>150</span><span>200</span><span>300</span><span>301+</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- RIGHT — Pollutants -->
+    <div class="pollutants-panel">
+        <div class="pollutants-header">
+            PRIMARY AIR POLLUTANTS
+            <span id="pollutants-city-name" class="panel-city-name"></span>
+        </div>
+        <div class="pollutants-grid">
+            <div class="pollutant-card">
+                <div class="pol-header"><div class="pol-name">PM2.5</div><div class="pol-icon">PM<br>2.5</div></div>
+                <div class="pol-value" id="pol-pm25">--</div>
+                <div class="pol-unit">μg/m³</div><div class="pol-desc">Fine particles</div>
+            </div>
+            <div class="pollutant-card">
+                <div class="pol-header"><div class="pol-name">PM10</div><div class="pol-icon">PM<br>10</div></div>
+                <div class="pol-value" id="pol-pm10">--</div>
+                <div class="pol-unit">μg/m³</div><div class="pol-desc">Coarse particles</div>
+            </div>
+            <div class="pollutant-card">
+                <div class="pol-header"><div class="pol-name">SO₂</div><div class="pol-icon">SO<br>2</div></div>
+                <div class="pol-value" id="pol-so2">--</div>
+                <div class="pol-unit">μg/m³</div><div class="pol-desc">Sulphur dioxide</div>
+            </div>
+            <div class="pollutant-card">
+                <div class="pol-header"><div class="pol-name">CO</div><div class="pol-icon">CO</div></div>
+                <div class="pol-value" id="pol-co">--</div>
+                <div class="pol-unit">μg/m³</div><div class="pol-desc">Carbon monoxide</div>
+            </div>
+            <div class="pollutant-card">
+                <div class="pol-header"><div class="pol-name">NO₂</div><div class="pol-icon">NO<br>2</div></div>
+                <div class="pol-value" id="pol-no2">--</div>
+                <div class="pol-unit">μg/m³</div><div class="pol-desc">Nitrogen dioxide</div>
+            </div>
+            <div class="pollutant-card">
+                <div class="pol-header"><div class="pol-name">O₃</div><div class="pol-icon">O3</div></div>
+                <div class="pol-value" id="pol-o3">--</div>
+                <div class="pol-unit">μg/m³</div><div class="pol-desc">Ozone</div>
+            </div>
+        </div>
+        <div class="cigarette-box" id="cigarette-box" style="display:none">
+            <div class="cig-number" id="cig-number">--</div>
+            <div class="cig-label">Cigarettes per day equivalent</div>
+            <div class="cig-desc" id="cig-desc"></div>
+        </div>
+    </div>
+</div>
+
+<!-- ══════════════════════════════════════ -->
+<!-- 1. 7-DAY AQI FORECAST                  -->
+<!-- ══════════════════════════════════════ -->
+<div class="forecast-section" id="forecast-section" style="display:none">
+    <div class="section-header-row">
+        <div>
+            <div class="section-eyebrow">ML MODEL PREDICTION</div>
+            <h2>7-Day AQI Forecast <span id="forecast-city-name" class="accent-text"></span></h2>
+        </div>
+        <div class="forecast-legend">
+            <span class="legend-dot" style="background:#22c55e"></span>Good
+            <span class="legend-dot" style="background:#f59e0b"></span>Moderate
+            <span class="legend-dot" style="background:#ef4444"></span>Poor
+            <span class="legend-dot" style="background:#a855f7"></span>Very Poor
+        </div>
+    </div>
+    <div class="forecast-cards" id="forecast-cards"></div>
+</div>
+
+<!-- ══════════════════════════════════════ -->
+<!-- 2. COMPARISON MODE                     -->
+<!-- ══════════════════════════════════════ -->
+<div class="comparison-section">
+    <div class="section-header-row">
+        <div>
+            <div class="section-eyebrow">COMPARE CITIES</div>
+            <h2>Side-by-Side AQI Comparison</h2>
+        </div>
+        <div class="compare-controls">
+            <select id="compare-city-a" onchange="loadComparison()">
+                {% for city in cities %}<option value="{{ city }}">{{ city }}</option>{% endfor %}
+            </select>
+            <span class="vs-badge">VS</span>
+            <select id="compare-city-b" onchange="loadComparison()">
+                {% for city in cities %}<option value="{{ city }}" {% if loop.index == 2 %}selected{% endif %}>{{ city }}</option>{% endfor %}
+            </select>
+        </div>
+    </div>
+
+    <div class="comparison-grid">
+        <!-- City A card -->
+        <div class="compare-city-card" id="compare-card-a">
+            <div class="compare-city-name" id="compare-name-a">--</div>
+            <div class="compare-aqi-number" id="compare-aqi-a">--</div>
+            <div class="compare-category" id="compare-cat-a">--</div>
+            <div class="compare-pm" id="compare-pm-a">PM2.5: --</div>
+        </div>
+
+        <!-- Chart in middle -->
+        <div class="compare-chart-wrap">
+            <canvas id="compare-chart"></canvas>
+        </div>
+
+        <!-- City B card -->
+        <div class="compare-city-card" id="compare-card-b">
+            <div class="compare-city-name" id="compare-name-b">--</div>
+            <div class="compare-aqi-number" id="compare-aqi-b">--</div>
+            <div class="compare-category" id="compare-cat-b">--</div>
+            <div class="compare-pm" id="compare-pm-b">PM2.5: --</div>
+        </div>
+    </div>
+</div>
+
+<!-- ══════════════════════════════════════ -->
+<!-- 3. INDIA HEATMAP                       -->
+<!-- ══════════════════════════════════════ -->
+<div class="heatmap-section">
+    <div class="section-header-row">
+        <div>
+            <div class="section-eyebrow">LIVE OVERVIEW</div>
+            <h2>India AQI Heatmap</h2>
+        </div>
+        <div class="heatmap-legend">
+            <span class="hm-chip" style="background:#22c55e20;color:#22c55e;border-color:#22c55e">Good ≤50</span>
+            <span class="hm-chip" style="background:#f59e0b20;color:#f59e0b;border-color:#f59e0b">Moderate ≤200</span>
+            <span class="hm-chip" style="background:#ef444420;color:#ef4444;border-color:#ef4444">Poor ≤300</span>
+            <span class="hm-chip" style="background:#a855f720;color:#a855f7;border-color:#a855f7">Very Poor+</span>
+        </div>
+    </div>
+    <div class="heatmap-container">
+        <!-- India SVG map with city dots -->
+        <div class="india-map-wrap">
+            <svg id="india-map-svg" viewBox="0 0 400 480" xmlns="http://www.w3.org/2000/svg">
+                <!-- Simplified India outline -->
+                <path class="india-outline" d="
+                    M120,30 L150,20 L200,18 L240,25 L270,35 L290,55 L300,80
+                    L310,100 L320,130 L330,160 L340,190 L345,220 L340,250
+                    L330,275 L315,295 L300,315 L285,335 L270,355 L255,370
+                    L240,385 L225,400 L210,415 L200,430 L195,445 L190,430
+                    L180,415 L170,400 L155,385 L140,365 L125,345 L110,320
+                    L95,295 L82,268 L75,240 L70,210 L68,180 L70,150
+                    L75,120 L85,95 L95,70 L108,48 Z
+                " fill="none" stroke="rgba(168,85,247,0.3)" stroke-width="1.5"/>
+                <!-- Kashmir / north detail -->
+                <path class="india-outline" d="M120,30 L105,38 L88,50 L78,65 L72,85 L68,110 L68,150" fill="none" stroke="rgba(168,85,247,0.2)" stroke-width="1"/>
+                <!-- City dots added by JS -->
+                <g id="heatmap-cities"></g>
+            </svg>
+        </div>
+
+        <!-- City list on side -->
+        <div class="heatmap-city-list" id="heatmap-city-list">
+            <!-- filled by JS -->
+        </div>
+    </div>
+</div>
+
+<!-- ══════════════════════════════════════ -->
+<!-- HEALTH RECOMMENDATIONS                 -->
+<!-- ══════════════════════════════════════ -->
+<div class="health-section">
+    <div class="health-header">
+        <div>
+            <div class="section-label">HEALTH RECOMMENDATIONS FOR
+                <span id="health-city-name">--</span> RESIDENTS
+            </div>
+            <div class="health-sub">
+                Based on current air quality:
+                <span id="health-aqi-status">--</span> · AQI
+                <span id="health-aqi-number">--</span>
+            </div>
+        </div>
+        <div class="health-status-pill" id="health-pill">--</div>
+    </div>
+    <div class="solutions-row">
+        <div class="solution-card"><div class="solution-icon">🌀</div><div>
+            <div class="solution-name">Air Purifier</div><div class="solution-action" id="sol-purifier">--</div>
+        </div></div>
+        <div class="solution-card"><div class="solution-icon">🚗</div><div>
+            <div class="solution-name">Car Filter</div><div class="solution-action" id="sol-carfilter">--</div>
+        </div></div>
+        <div class="solution-card"><div class="solution-icon">😷</div><div>
+            <div class="solution-name">N95 Mask</div><div class="solution-action" id="sol-mask">--</div>
+        </div></div>
+        <div class="solution-card"><div class="solution-icon">🏠</div><div>
+            <div class="solution-name">Stay Indoor</div><div class="solution-action" id="sol-indoor">--</div>
+        </div></div>
+    </div>
+</div>
+
+<!-- HEALTH RISK TABS -->
+<div class="health-risks-section">
+    <div class="risks-header">
+        <div class="risks-title">Prevent Health Problems: Understand Your Risks</div>
+        <div class="risks-sub">
+            <span id="risks-city">--</span> · Current air quality:
+            <span id="risks-status">--</span> · AQI <span id="risks-aqi">--</span>
+        </div>
+    </div>
+    <div class="risk-tabs">
+        <button class="risk-tab active" style="--rc-color:#f472b6;--rc-glow:rgba(244,114,182,0.35)" onclick="showRisk('headaches', event)">🧠 Headaches</button>
+        <button class="risk-tab" style="--rc-color:#22d3ee;--rc-glow:rgba(34,211,238,0.35)" onclick="showRisk('eyes', event)">👁️ Eyes</button>
+        <button class="risk-tab" style="--rc-color:#fb923c;--rc-glow:rgba(251,146,60,0.35)" onclick="showRisk('pregnancy', event)">🤱 Pregnancy</button>
+        <button class="risk-tab" style="--rc-color:#60a5fa;--rc-glow:rgba(96,165,250,0.35)" onclick="showRisk('asthma', event)">💨 Asthma</button>
+        <button class="risk-tab" style="--rc-color:#f87171;--rc-glow:rgba(248,113,113,0.35)" onclick="showRisk('heart', event)">❤️ Heart</button>
+        <button class="risk-tab" style="--rc-color:#4ade80;--rc-glow:rgba(74,222,128,0.35)" onclick="showRisk('allergies', event)">🌿 Allergies</button>
+        <button class="risk-tab" style="--rc-color:#c084fc;--rc-glow:rgba(192,132,252,0.35)" onclick="showRisk('sinus', event)">🫁 Sinus</button>
+    </div>
+    <!-- HEADACHES -->
+    <div class="risk-content" id="risk-headaches" style="--rc-color:#f472b6;--rc-glow:rgba(244,114,182,0.35);--rc-bg-from:#2a0a1e;--rc-bg-to:#0d0d14">
+        <div class="risk-image-col">
+            <div class="risk-icon-box">🧠</div>
+            <div class="risk-level-badge">⚡ Elevated Trigger Risk</div>
+            <div class="risk-meter">
+                <div class="risk-meter-label">Risk Level</div>
+                <div class="risk-meter-track">
+                    <div class="risk-meter-needle" style="left:45%"></div>
+                </div>
+            </div>
+        </div>
+        <div class="risk-info-col">
+            <h3>Headaches</h3>
+            <p>Risk of <strong>Headaches</strong> is <span class="risk-level">Elevated</span> when AQI is <span class="risk-aqi-range">Poor (101–150)</span>. Fine particles and NO₂ irritate the nervous system, triggering tension and migraine events.</p>
+            <div class="risk-signs">
+                <strong>Common Signs</strong>
+                <div class="signs-tags">
+                    <span class="sign-tag">Forehead pressure</span>
+                    <span class="sign-tag">Temple tightness</span>
+                    <span class="sign-tag">Light sensitivity</span>
+                    <span class="sign-tag">Smell sensitivity</span>
+                    <span class="sign-tag">Fatigue</span>
+                    <span class="sign-tag">Difficulty concentrating</span>
+                </div>
+            </div>
+            <div class="dos-donts">
+                <div class="dos"><h4>✦ Do's</h4><ul>
+                    <li>Choose indoor clean air environments</li>
+                    <li>Stay well hydrated throughout the day</li>
+                    <li>Keep prescribed migraine meds accessible</li>
+                </ul></div>
+                <div class="donts"><h4>✦ Don'ts</h4><ul>
+                    <li>Avoid intense outdoor exercise on high AQI days</li>
+                    <li>Don't ignore worsening or unusual symptoms</li>
+                </ul></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- EYE IRRITATION -->
+    <div class="risk-content" id="risk-eyes" style="display:none;--rc-color:#22d3ee;--rc-glow:rgba(34,211,238,0.35);--rc-bg-from:#0a1e2a;--rc-bg-to:#0d0d14">
+        <div class="risk-image-col">
+            <div class="risk-icon-box">👁️</div>
+            <div class="risk-level-badge">⚡ Moderate Trigger Risk</div>
+            <div class="risk-meter">
+                <div class="risk-meter-label">Risk Level</div>
+                <div class="risk-meter-track">
+                    <div class="risk-meter-needle" style="left:35%"></div>
+                </div>
+            </div>
+        </div>
+        <div class="risk-info-col">
+            <h3>Eye Irritation</h3>
+            <p>Risk is <span class="risk-level">Moderate</span> when AQI is <span class="risk-aqi-range">Moderate (101–200)</span>. Particulate matter and ozone irritate the conjunctiva, causing inflammation and discomfort.</p>
+            <div class="risk-signs">
+                <strong>Common Signs</strong>
+                <div class="signs-tags">
+                    <span class="sign-tag">Redness</span>
+                    <span class="sign-tag">Watering eyes</span>
+                    <span class="sign-tag">Burning sensation</span>
+                    <span class="sign-tag">Blurred vision</span>
+                    <span class="sign-tag">Itching</span>
+                </div>
+            </div>
+            <div class="dos-donts">
+                <div class="dos"><h4>✦ Do's</h4><ul>
+                    <li>Wear wraparound glasses outdoors</li>
+                    <li>Use lubricating eye drops regularly</li>
+                    <li>Rinse eyes with clean water after going outside</li>
+                </ul></div>
+                <div class="donts"><h4>✦ Don'ts</h4><ul>
+                    <li>Avoid rubbing eyes outdoors</li>
+                    <li>Don't wear contact lenses on high AQI days</li>
+                </ul></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- PREGNANCY -->
+    <div class="risk-content" id="risk-pregnancy" style="display:none;--rc-color:#fb923c;--rc-glow:rgba(251,146,60,0.35);--rc-bg-from:#2a150a;--rc-bg-to:#0d0d14">
+        <div class="risk-image-col">
+            <div class="risk-icon-box">🤱</div>
+            <div class="risk-level-badge">🔴 High Trigger Risk</div>
+            <div class="risk-meter">
+                <div class="risk-meter-label">Risk Level</div>
+                <div class="risk-meter-track">
+                    <div class="risk-meter-needle" style="left:62%"></div>
+                </div>
+            </div>
+        </div>
+        <div class="risk-info-col">
+            <h3>Pregnancy & Infants</h3>
+            <p>Risk is <span class="risk-level">High</span> during poor air quality days. Ultrafine particles cross the placental barrier, linked to reduced fetal oxygen and low birth weight outcomes.</p>
+            <div class="risk-signs">
+                <strong>Common Signs</strong>
+                <div class="signs-tags">
+                    <span class="sign-tag">Reduced fetal oxygen</span>
+                    <span class="sign-tag">Infant respiratory distress</span>
+                    <span class="sign-tag">Premature birth risk</span>
+                    <span class="sign-tag">Low birth weight</span>
+                </div>
+            </div>
+            <div class="dos-donts">
+                <div class="dos"><h4>✦ Do's</h4><ul>
+                    <li>Stay indoors as much as possible</li>
+                    <li>Use air purifier in sleeping area</li>
+                    <li>Consult doctor if unusual symptoms occur</li>
+                </ul></div>
+                <div class="donts"><h4>✦ Don'ts</h4><ul>
+                    <li>Avoid heavy traffic and construction areas</li>
+                    <li>Don't exercise outdoors when AQI is Moderate+</li>
+                </ul></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ASTHMA -->
+    <div class="risk-content" id="risk-asthma" style="display:none;--rc-color:#60a5fa;--rc-glow:rgba(96,165,250,0.35);--rc-bg-from:#0a102a;--rc-bg-to:#0d0d14">
+        <div class="risk-image-col">
+            <div class="risk-icon-box">💨</div>
+            <div class="risk-level-badge">🔴 High Trigger Risk</div>
+            <div class="risk-meter">
+                <div class="risk-meter-label">Risk Level</div>
+                <div class="risk-meter-track">
+                    <div class="risk-meter-needle" style="left:68%"></div>
+                </div>
+            </div>
+        </div>
+        <div class="risk-info-col">
+            <h3>Asthma</h3>
+            <p>Risk of attacks is <span class="risk-level">High</span> when AQI is <span class="risk-aqi-range">Poor or above</span>. Airborne triggers constrict airways and increase bronchial inflammation in sensitive individuals.</p>
+            <div class="risk-signs">
+                <strong>Common Signs</strong>
+                <div class="signs-tags">
+                    <span class="sign-tag">Wheezing</span>
+                    <span class="sign-tag">Shortness of breath</span>
+                    <span class="sign-tag">Chest tightness</span>
+                    <span class="sign-tag">Increased inhaler use</span>
+                    <span class="sign-tag">Night coughing</span>
+                </div>
+            </div>
+            <div class="dos-donts">
+                <div class="dos"><h4>✦ Do's</h4><ul>
+                    <li>Keep rescue inhaler accessible at all times</li>
+                    <li>Use air purifier indoors</li>
+                    <li>Wear N95 mask outdoors</li>
+                </ul></div>
+                <div class="donts"><h4>✦ Don'ts</h4><ul>
+                    <li>Avoid outdoor exercise when AQI is Poor+</li>
+                    <li>Don't skip preventive medication</li>
+                </ul></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- HEART -->
+    <div class="risk-content" id="risk-heart" style="display:none;--rc-color:#f87171;--rc-glow:rgba(248,113,113,0.35);--rc-bg-from:#2a0a0a;--rc-bg-to:#0d0d14">
+        <div class="risk-image-col">
+            <div class="risk-icon-box">❤️</div>
+            <div class="risk-level-badge">⚡ Elevated Trigger Risk</div>
+            <div class="risk-meter">
+                <div class="risk-meter-label">Risk Level</div>
+                <div class="risk-meter-track">
+                    <div class="risk-meter-needle" style="left:50%"></div>
+                </div>
+            </div>
+        </div>
+        <div class="risk-info-col">
+            <h3>Heart Issues</h3>
+            <p>Risk is <span class="risk-level">Elevated</span> on poor AQI days. PM2.5 enters the bloodstream causing systemic inflammation, increased clotting risk, and arterial stress.</p>
+            <div class="risk-signs">
+                <strong>Common Signs</strong>
+                <div class="signs-tags">
+                    <span class="sign-tag">Chest pain</span>
+                    <span class="sign-tag">Palpitations</span>
+                    <span class="sign-tag">Elevated blood pressure</span>
+                    <span class="sign-tag">Shortness of breath</span>
+                    <span class="sign-tag">Fatigue</span>
+                </div>
+            </div>
+            <div class="dos-donts">
+                <div class="dos"><h4>✦ Do's</h4><ul>
+                    <li>Monitor blood pressure more frequently</li>
+                    <li>Stay indoors during peak pollution hours</li>
+                    <li>Keep heart medication accessible</li>
+                </ul></div>
+                <div class="donts"><h4>✦ Don'ts</h4><ul>
+                    <li>Avoid strenuous outdoor activity</li>
+                    <li>Don't ignore chest tightness or breathlessness</li>
+                </ul></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ALLERGIES -->
+    <div class="risk-content" id="risk-allergies" style="display:none;--rc-color:#4ade80;--rc-glow:rgba(74,222,128,0.35);--rc-bg-from:#0a2a12;--rc-bg-to:#0d0d14">
+        <div class="risk-image-col">
+            <div class="risk-icon-box">🌿</div>
+            <div class="risk-level-badge">⚡ Moderate Trigger Risk</div>
+            <div class="risk-meter">
+                <div class="risk-meter-label">Risk Level</div>
+                <div class="risk-meter-track">
+                    <div class="risk-meter-needle" style="left:32%"></div>
+                </div>
+            </div>
+        </div>
+        <div class="risk-info-col">
+            <h3>Allergies</h3>
+            <p>Risk of reactions is <span class="risk-level">Moderate</span> during elevated AQI. Pollutants amplify the immune response to allergens, intensifying histamine reactions.</p>
+            <div class="risk-signs">
+                <strong>Common Signs</strong>
+                <div class="signs-tags">
+                    <span class="sign-tag">Sneezing</span>
+                    <span class="sign-tag">Runny nose</span>
+                    <span class="sign-tag">Skin rashes</span>
+                    <span class="sign-tag">Itching</span>
+                    <span class="sign-tag">Watery eyes</span>
+                    <span class="sign-tag">Hives</span>
+                </div>
+            </div>
+            <div class="dos-donts">
+                <div class="dos"><h4>✦ Do's</h4><ul>
+                    <li>Keep antihistamines handy</li>
+                    <li>Shower after coming indoors</li>
+                    <li>Keep windows closed on high pollen/AQI days</li>
+                </ul></div>
+                <div class="donts"><h4>✦ Don'ts</h4><ul>
+                    <li>Avoid outdoor morning walks during high AQI</li>
+                    <li>Don't dry clothes outside on bad air days</li>
+                </ul></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- SINUS -->
+    <div class="risk-content" id="risk-sinus" style="display:none;--rc-color:#c084fc;--rc-glow:rgba(192,132,252,0.35);--rc-bg-from:#1a0a2a;--rc-bg-to:#0d0d14">
+        <div class="risk-image-col">
+            <div class="risk-icon-box">🫁</div>
+            <div class="risk-level-badge">⚡ Elevated Trigger Risk</div>
+            <div class="risk-meter">
+                <div class="risk-meter-label">Risk Level</div>
+                <div class="risk-meter-track">
+                    <div class="risk-meter-needle" style="left:48%"></div>
+                </div>
+            </div>
+        </div>
+        <div class="risk-info-col">
+            <h3>Sinus</h3>
+            <p>Risk of sinus issues is <span class="risk-level">Elevated</span> when AQI is poor. Particulates and chemical irritants inflame the sinus passages causing chronic congestion and pressure.</p>
+            <div class="risk-signs">
+                <strong>Common Signs</strong>
+                <div class="signs-tags">
+                    <span class="sign-tag">Nasal congestion</span>
+                    <span class="sign-tag">Facial pressure</span>
+                    <span class="sign-tag">Headache</span>
+                    <span class="sign-tag">Post-nasal drip</span>
+                    <span class="sign-tag">Reduced smell</span>
+                </div>
+            </div>
+            <div class="dos-donts">
+                <div class="dos"><h4>✦ Do's</h4><ul>
+                    <li>Use saline nasal spray to clear passages</li>
+                    <li>Stay well hydrated</li>
+                    <li>Use a humidifier indoors</li>
+                </ul></div>
+                <div class="donts"><h4>✦ Don'ts</h4><ul>
+                    <li>Avoid smoky or dusty environments</li>
+                    <li>Don't skip prescribed nasal medication</li>
+                </ul></div>
+            </div>
+        </div>
+    </div>
+
+    <p class="health-disclaimer">Disclaimer: The health risks above are precautionary recommendations based on current AQI levels. This is not medical advice. Please consult a clinician if you experience severe or worsening symptoms.</p>
+</div>
+
+<!-- HISTORICAL CHART -->
+<div class="chart-section">
+    <div class="chart-header">
+        <div>
+            <div class="chart-label">AQI GRAPH</div>
+            <h2>Historical AQI Data</h2>
+            <div class="chart-city" id="chart-city">Select a city</div>
+        </div>
+        <div class="chart-stats">
+            <div class="chart-stat-box min-box">
+                <div class="stat-badge min-badge">MIN</div>
+                <div><div class="stat-value" id="chart-min">--</div><div class="stat-label">Min AQI</div></div>
+            </div>
+            <div class="chart-stat-box max-box">
+                <div class="stat-badge max-badge">MAX</div>
+                <div><div class="stat-value" id="chart-max">--</div><div class="stat-label">Max AQI</div></div>
+            </div>
+        </div>
+    </div>
+    <canvas id="aqi-chart"></canvas>
+</div>
+
+<!-- CITIES OVERVIEW -->
+<div class="cities-section">
+    <h2>India's Major Cities</h2>
+    <div class="cities-sub">AQI Overview</div>
+    <div class="cities-grid" id="cities-grid"></div>
+</div>
+
+<!-- ══════════════════════════════════════ -->
+<!-- 4. MODEL EXPLAINABILITY               -->
+<!-- ══════════════════════════════════════ -->
+<div class="explainability-section">
+    <div class="section-header-row">
+        <div>
+            <div class="section-eyebrow">ML TRANSPARENCY</div>
+            <h2>Model Explainability</h2>
+            <p class="section-desc">What drives our XGBoost model's AQI predictions? See which factors matter most — globally and per prediction.</p>
+        </div>
+        <div class="explain-badge">XGBoost · R² 0.84</div>
+    </div>
+
+    <div class="explain-grid">
+        <!-- Left: node graph + bars side by side -->
+        <div class="explain-chart-box node-graph-box">
+            <div class="explain-chart-title">Global Feature Importance</div>
+            <div class="explain-chart-subtitle">How much each factor influences all predictions</div>
+            <div class="node-graph-wrap">
+                <!-- Compact SVG: 280×260 viewBox matching JS coordinates -->
+                <svg id="node-graph-svg" viewBox="0 0 280 260" xmlns="http://www.w3.org/2000/svg" style="flex-shrink:0;width:200px;height:auto">
+                    <g id="node-lines"></g>
+                    <g id="node-features"></g>
+                    <g id="node-center">
+                        <!-- Outer glow ring -->
+                        <circle cx="230" cy="130" r="44" fill="rgba(245,158,11,0.04)" stroke="rgba(245,158,11,0.15)" stroke-width="1"/>
+                        <!-- Main node -->
+                        <circle cx="230" cy="130" r="34" fill="#111118" stroke="#f59e0b" stroke-width="1.5"/>
+                        <text x="230" y="125" text-anchor="middle" fill="#f59e0b" font-size="8" font-weight="700" letter-spacing="0.8" font-family="system-ui,sans-serif">PREDICTED</text>
+                        <text x="230" y="139" text-anchor="middle" fill="#f59e0b" font-size="8" font-weight="700" letter-spacing="0.8" font-family="system-ui,sans-serif">AQI</text>
+                    </g>
+                </svg>
+                <!-- Bar list to the right of graph -->
+                <div class="feature-bars" id="feature-bars" style="flex:1;min-width:0"></div>
+            </div>
+        </div>
+
+        <!-- Right: prediction breakdown -->
+        <div class="explain-chart-box">
+            <div class="explain-chart-title">Prediction Breakdown</div>
+            <div class="explain-chart-subtitle">Run a prediction below to see which factors drove it</div>
+            <div class="feature-bars" id="pred-feature-bars">
+                <div class="explain-placeholder">
+                    <div class="explain-placeholder-icon">⚡</div>
+                    <div>Run a prediction to see the breakdown</div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- PREDICTION SECTION -->
+<!-- ══════════════════════════════════════ -->
+<div class="prediction-section">
+    <div class="section-header-row" style="padding: 0 0 8px 0">
+        <div>
+            <div class="section-eyebrow">MACHINE LEARNING</div>
+            <h2>Predict Tomorrow's AQI</h2>
+            <p class="section-desc">Enter today's pollutant readings — the XGBoost model predicts tomorrow's air quality.</p>
+        </div>
+    </div>
+
+    <div class="pred-layout">
+        <!-- LEFT: form -->
+        <div class="pred-form-panel">
+
+            <!-- City selector -->
+            <div class="pred-city-row">
+                <label class="pred-field-label">CITY</label>
+                <select id="pred-city" class="pred-city-select">
+                    {% for city in cities %}<option value="{{ city }}">{{ city }}</option>{% endfor %}
+                </select>
+            </div>
+
+            <!-- Pollutants group -->
+            <div class="pred-group-label">POLLUTANT READINGS</div>
+            <div class="pred-inputs-grid">
+                <div class="pred-field">
+                    <input type="number" id="pred-pm25" placeholder=" " step="0.1" class="pred-input">
+                    <label class="pred-float-label">PM2.5 μg/m³</label>
+                </div>
+                <div class="pred-field">
+                    <input type="number" id="pred-pm10" placeholder=" " step="0.1" class="pred-input">
+                    <label class="pred-float-label">PM10 μg/m³</label>
+                </div>
+                <div class="pred-field">
+                    <input type="number" id="pred-no2" placeholder=" " step="0.1" class="pred-input">
+                    <label class="pred-float-label">NO₂ μg/m³</label>
+                </div>
+                <div class="pred-field">
+                    <input type="number" id="pred-nh3" placeholder=" " step="0.1" class="pred-input">
+                    <label class="pred-float-label">NH₃ μg/m³</label>
+                </div>
+                <div class="pred-field">
+                    <input type="number" id="pred-so2" placeholder=" " step="0.1" class="pred-input">
+                    <label class="pred-float-label">SO₂ μg/m³</label>
+                </div>
+                <div class="pred-field">
+                    <input type="number" id="pred-co" placeholder=" " step="0.01" class="pred-input">
+                    <label class="pred-float-label">CO mg/m³</label>
+                </div>
+                <div class="pred-field">
+                    <input type="number" id="pred-o3" placeholder=" " step="0.1" class="pred-input">
+                    <label class="pred-float-label">O₃ μg/m³</label>
+                </div>
+                <div class="pred-field">
+                    <input type="number" id="pred-aqi" placeholder=" " step="0.1" class="pred-input">
+                    <label class="pred-float-label">Today's AQI</label>
+                </div>
+            </div>
+
+            <!-- AQI History group -->
+            <div class="pred-group-label">AQI HISTORY</div>
+            <div class="pred-inputs-grid">
+                <div class="pred-field">
+                    <input type="number" id="pred-lag1" placeholder=" " step="0.1" class="pred-input">
+                    <label class="pred-float-label">Yesterday</label>
+                </div>
+                <div class="pred-field">
+                    <input type="number" id="pred-lag3" placeholder=" " step="0.1" class="pred-input">
+                    <label class="pred-float-label">3 Days Ago</label>
+                </div>
+                <div class="pred-field">
+                    <input type="number" id="pred-lag7" placeholder=" " step="0.1" class="pred-input">
+                    <label class="pred-float-label">7 Days Ago</label>
+                </div>
+                <div class="pred-field">
+                    <input type="number" id="pred-roll7" placeholder=" " step="0.1" class="pred-input">
+                    <label class="pred-float-label">7-Day Average</label>
+                </div>
+            </div>
+
+            <button class="predict-btn" onclick="predict()">
+                <span class="predict-btn-icon">⚡</span>
+                Predict Tomorrow's AQI
+            </button>
+        </div>
+
+        <!-- RIGHT: gauge result -->
+        <div class="pred-result-panel" id="result-card">
+
+            <!-- Placeholder state -->
+            <div class="gauge-placeholder" id="result-placeholder">
+                <div class="gauge-placeholder-icon">⚡</div>
+                <div class="gauge-placeholder-text">Enter values & predict</div>
+                <div class="gauge-placeholder-sub">The model will predict tomorrow's AQI</div>
+            </div>
+
+            <!-- Result state -->
+            <div id="result-content" style="display:none" class="gauge-result">
+                <div class="gauge-city" id="result-city">--</div>
+                <div class="gauge-label">Tomorrow's Predicted AQI</div>
+
+                <!-- SVG Speedometer -->
+                <div class="gauge-wrap">
+                    <svg id="gauge-svg" viewBox="0 0 260 160" xmlns="http://www.w3.org/2000/svg">
+                        <!-- background arc segments -->
+                        <defs>
+                            <filter id="glow-filter">
+                                <feGaussianBlur stdDeviation="3" result="blur"/>
+                                <feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge>
+                            </filter>
+                        </defs>
+                        <!-- arc track (half circle) -->
+                        <path d="M 20 140 A 110 110 0 0 1 240 140" fill="none" stroke="#1e1e28" stroke-width="16" stroke-linecap="round"/>
+                        <!-- color zone arcs -->
+                        <path id="arc-good"     d="M 20 140 A 110 110 0 0 1 240 140" fill="none" stroke="url(#arcGrad)" stroke-width="10" stroke-linecap="round" stroke-dasharray="345.6" stroke-dashoffset="0"/>
+                        <defs>
+                            <linearGradient id="arcGrad" x1="0%" y1="0%" x2="100%" y2="0%">
+                                <stop offset="0%"   stop-color="#22c55e"/>
+                                <stop offset="20%"  stop-color="#84cc16"/>
+                                <stop offset="40%"  stop-color="#f59e0b"/>
+                                <stop offset="65%"  stop-color="#ef4444"/>
+                                <stop offset="85%"  stop-color="#a855f7"/>
+                                <stop offset="100%" stop-color="#7e0023"/>
+                            </linearGradient>
+                        </defs>
+                        <!-- Needle -->
+                        <g id="gauge-needle" transform="rotate(-90 130 140)">
+                            <line x1="130" y1="140" x2="130" y2="45" stroke="white" stroke-width="2.5" stroke-linecap="round"/>
+                            <circle cx="130" cy="140" r="6" fill="white"/>
+                            <circle cx="130" cy="140" r="3" fill="#0d0d14"/>
+                        </g>
+                        <!-- AQI number in center -->
+                        <text id="gauge-number" x="130" y="118" text-anchor="middle" fill="white" font-size="36" font-weight="900" font-family="sans-serif">--</text>
+                        <!-- Labels -->
+                        <text x="18"  y="158" fill="#22c55e" font-size="8" font-weight="700">Good</text>
+                        <text x="100" y="150" fill="#f59e0b" font-size="8" font-weight="700">Moderate</text>
+                        <text x="200" y="158" fill="#ef4444" font-size="8" font-weight="700">Poor+</text>
+                    </svg>
+                </div>
+
+                <div class="gauge-category" id="result-category">--</div>
+                <div class="gauge-advice" id="result-advice"></div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- FOOTER -->
+<footer>
+    <div class="footer-brand">
+        <div class="footer-logo">AQI</div>
+        <p>Real-time air quality monitoring & prediction for India's major cities.</p>
+    </div>
+    <div class="footer-links">
+        <div class="footer-col">
+            <h4>TOP CITIES</h4>
+            <ul><li>Delhi</li><li>Mumbai</li><li>Bengaluru</li><li>Kolkata</li><li>Chennai</li></ul>
+        </div>
+        <div class="footer-col">
+            <h4>DATA SOURCE</h4>
+            <ul><li>CPCB India</li><li>WAQI API</li><li>Berkeley Earth</li></ul>
+        </div>
+    </div>
+</footer>
+
+<script src="{{ url_for('static', filename='script.js') }}?v=8"></script>
+</body>
+</html>
