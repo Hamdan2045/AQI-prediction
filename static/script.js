@@ -743,34 +743,121 @@ function predict() {
         })
 }
 
-// ── GAUGE NEEDLE ANIMATION ──────────────────────────
+// ══════════════════════════════════════════════════════
+// NEON ARC REACTOR GAUGE
+// ══════════════════════════════════════════════════════
 function animateGauge(targetAQI, color) {
-    // Map AQI 0-500 → angle -90 to +90 degrees (180° sweep)
     const minAQI = 0, maxAQI = 500
     const minDeg = -90, maxDeg = 90
     const clamp  = Math.min(Math.max(targetAQI, minAQI), maxAQI)
-    const angle  = minDeg + (clamp / maxAQI) * (maxDeg - minDeg)
+    const targetAngle = minDeg + (clamp / maxAQI) * (maxDeg - minDeg)
 
-    const needle  = document.getElementById('gauge-needle')
-    const numEl   = document.getElementById('gauge-number')
+    const needle     = document.getElementById('gauge-needle')
+    const needleGlow = document.getElementById('needle-glow')
+    const needleLine = document.getElementById('needle-line')
+    const needleBase = document.getElementById('needle-base')
+    const numEl      = document.getElementById('gauge-number')
+    const bgGlow     = document.getElementById('gauge-bg-glow')
+    const bgStop     = document.getElementById('bg-glow-stop')
+    const scanner    = document.getElementById('scanner-ring')
     if (!needle || !numEl) return
 
-    // Animate needle
-    let current = -90
-    const step  = (angle - current) / 40
-    let frame   = 0
-    const tick  = setInterval(() => {
-        current += step
+    // Apply color to neon elements immediately
+    if (needleGlow) needleGlow.setAttribute('stroke', color)
+    if (needleLine) needleLine.setAttribute('stroke', color)
+    if (needleBase) needleBase.setAttribute('fill', color)
+    if (bgStop)     { bgStop.setAttribute('stop-color', color) }
+    if (scanner)    scanner.setAttribute('stroke', color)
+
+    // Start scanner ring spinning
+    let scanAngle = 0
+    const scanTick = setInterval(() => {
+        scanAngle -= 4
+        if (scanner) scanner.setAttribute('stroke-dashoffset', scanAngle)
+    }, 16)
+
+    // Light up LEDs as needle passes each zone boundary
+    // AQI zone boundaries: 50(18%), 100(36%), 200(62%), 300(80%), 400(92%)
+    const LED_THRESHOLDS = [
+        { aqi: 50,  id: 'led-0', color: '#22c55e' },
+        { aqi: 100, id: 'led-1', color: '#84cc16' },
+        { aqi: 200, id: 'led-2', color: '#f59e0b' },
+        { aqi: 300, id: 'led-3', color: '#ef4444' },
+        { aqi: 400, id: 'led-4', color: '#a855f7' },
+    ]
+
+    // Easing: ease-out cubic
+    function easeOut(t) { return 1 - Math.pow(1 - t, 3) }
+
+    const FRAMES   = 55
+    const DURATION = 55 * 18  // ~1 second
+    let frame = 0
+
+    numEl.setAttribute('fill', color)
+
+    const tick = setInterval(() => {
         frame++
-        needle.setAttribute('transform', `rotate(${current} 130 140)`)
-        // Count-up number
-        const displayed = Math.round(minAQI + ((current - minDeg) / (maxDeg - minDeg)) * maxAQI)
-        numEl.textContent = Math.max(0, displayed)
+        const t       = Math.min(frame / FRAMES, 1)
+        const eased   = easeOut(t)
+        const current = minDeg + eased * (targetAngle - minDeg)
+        const currentAQI = Math.round((eased * (clamp - minAQI)) + minAQI)
+
+        // Rotate needle
+        needle.setAttribute('transform', `rotate(${current} 150 175)`)
+
+        // Count-up number with color
+        numEl.textContent = currentAQI
         numEl.setAttribute('fill', color)
-        if (frame >= 40) {
+
+        // Light up LEDs as we pass each threshold
+        LED_THRESHOLDS.forEach(led => {
+            const el = document.getElementById(led.id)
+            if (!el) return
+            if (currentAQI >= led.aqi) {
+                el.setAttribute('opacity', '1')
+                el.setAttribute('filter', 'url(#neon-glow)')
+                el.setAttribute('r', '4.5')
+            }
+        })
+
+        // Needle base pulse during sweep
+        const baseGlow = document.getElementById('needle-base-glow')
+        if (baseGlow) {
+            const pulse = 8 + Math.sin(frame * 0.3) * 4
+            baseGlow.setAttribute('r', pulse)
+        }
+
+        if (frame >= FRAMES) {
             clearInterval(tick)
-            needle.setAttribute('transform', `rotate(${angle} 130 140)`)
+            clearInterval(scanTick)
+
+            // Stop scanner ring
+            if (scanner) {
+                scanner.style.transition = 'opacity 0.5s'
+                scanner.setAttribute('opacity', '0.15')
+            }
+
+            // Final values
+            needle.setAttribute('transform', `rotate(${targetAngle} 150 175)`)
             numEl.textContent = Math.round(targetAQI)
+
+            // Landing pulse — base circle blooms then shrinks
+            if (needleBase) {
+                needleBase.style.transition = 'none'
+                const landPulse = setInterval(() => {
+                    const r = 5.5 + Math.sin(Date.now() * 0.008) * 2
+                    needleBase.setAttribute('r', r)
+                }, 30)
+                setTimeout(() => clearInterval(landPulse), 1200)
+            }
+
+            // Background glow breathe after landing
+            if (bgGlow) {
+                bgGlow.style.animation = 'gaugeBreath 3s ease-in-out infinite'
+            }
+
+            // Glow needle text
+            numEl.setAttribute('filter', 'url(#neon-glow)')
         }
     }, 18)
 }
@@ -789,7 +876,14 @@ function showPredictionResult(data) {
     cat.style.background  = info.color + '18'
 
     document.getElementById('result-advice').innerHTML = getHealthAdvice(data.aqi)
-    document.getElementById('result-card').style.borderColor = info.color + '66'
+    const card = document.getElementById('result-card')
+    card.style.borderColor = info.color + '66'
+    card.style.boxShadow   = `0 0 40px ${info.color}12, inset 0 0 40px ${info.color}06`
+    card.classList.add('active')
+
+    // Update gauge wrap drop-shadow to match color
+    const gWrap = document.querySelector('.gauge-wrap')
+    if (gWrap) gWrap.style.filter = `drop-shadow(0 0 24px ${info.color}30)`
 
     // Animate the speedometer gauge
     animateGauge(data.aqi, info.color)
