@@ -1420,7 +1420,7 @@ footer {
     justify-content: center;
     gap: 0;
     padding: 0 10px;
-    transform: translateX(-15%);
+    transform: translateX(-8%);
 }
 .skyline-icon {
     flex-shrink: 0;
@@ -2440,3 +2440,4 @@ footer {
 .pred-result-panel.active {
     box-shadow: 0 0 40px rgba(245,158,11,0.08), inset 0 0 40px rgba(245,158,11,0.03);
 }
+
