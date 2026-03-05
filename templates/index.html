@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>AQI India — Air Quality Prediction</title>
-    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}?v=8">
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}?v=9">
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 </head>
 
@@ -746,42 +746,142 @@
                 <div class="gauge-city" id="result-city">--</div>
                 <div class="gauge-label">Tomorrow's Predicted AQI</div>
 
-                <!-- SVG Speedometer -->
+                <!-- NEON ARC REACTOR GAUGE -->
                 <div class="gauge-wrap">
-                    <svg id="gauge-svg" viewBox="0 0 260 160" xmlns="http://www.w3.org/2000/svg">
-                        <!-- background arc segments -->
+                    <svg id="gauge-svg" viewBox="0 0 300 200" xmlns="http://www.w3.org/2000/svg">
                         <defs>
-                            <filter id="glow-filter">
-                                <feGaussianBlur stdDeviation="3" result="blur"/>
-                                <feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge>
+                            <!-- Neon glow filter for needle -->
+                            <filter id="neon-glow" x="-50%" y="-50%" width="200%" height="200%">
+                                <feGaussianBlur stdDeviation="3" result="blur1"/>
+                                <feGaussianBlur stdDeviation="6" result="blur2"/>
+                                <feMerge>
+                                    <feMergeNode in="blur2"/>
+                                    <feMergeNode in="blur1"/>
+                                    <feMergeNode in="SourceGraphic"/>
+                                </feMerge>
                             </filter>
-                        </defs>
-                        <!-- arc track (half circle) -->
-                        <path d="M 20 140 A 110 110 0 0 1 240 140" fill="none" stroke="#1e1e28" stroke-width="16" stroke-linecap="round"/>
-                        <!-- color zone arcs -->
-                        <path id="arc-good"     d="M 20 140 A 110 110 0 0 1 240 140" fill="none" stroke="url(#arcGrad)" stroke-width="10" stroke-linecap="round" stroke-dasharray="345.6" stroke-dashoffset="0"/>
-                        <defs>
+                            <!-- Soft glow for arc -->
+                            <filter id="arc-glow" x="-20%" y="-20%" width="140%" height="140%">
+                                <feGaussianBlur stdDeviation="4" result="blur"/>
+                                <feMerge>
+                                    <feMergeNode in="blur"/>
+                                    <feMergeNode in="SourceGraphic"/>
+                                </feMerge>
+                            </filter>
+                            <!-- Radial bg glow -->
+                            <radialGradient id="bgGlow" cx="50%" cy="80%" r="55%">
+                                <stop offset="0%"   stop-color="#f59e0b" stop-opacity="0.08" id="bg-glow-stop"/>
+                                <stop offset="100%" stop-color="#f59e0b" stop-opacity="0"/>
+                            </radialGradient>
+                            <!-- Arc gradient track -->
                             <linearGradient id="arcGrad" x1="0%" y1="0%" x2="100%" y2="0%">
                                 <stop offset="0%"   stop-color="#22c55e"/>
-                                <stop offset="20%"  stop-color="#84cc16"/>
-                                <stop offset="40%"  stop-color="#f59e0b"/>
-                                <stop offset="65%"  stop-color="#ef4444"/>
-                                <stop offset="85%"  stop-color="#a855f7"/>
+                                <stop offset="18%"  stop-color="#84cc16"/>
+                                <stop offset="38%"  stop-color="#f59e0b"/>
+                                <stop offset="62%"  stop-color="#ef4444"/>
+                                <stop offset="82%"  stop-color="#a855f7"/>
                                 <stop offset="100%" stop-color="#7e0023"/>
                             </linearGradient>
+                            <!-- Glowing arc overlay -->
+                            <linearGradient id="arcGradGlow" x1="0%" y1="0%" x2="100%" y2="0%">
+                                <stop offset="0%"   stop-color="#22c55e" stop-opacity="0.6"/>
+                                <stop offset="38%"  stop-color="#f59e0b" stop-opacity="0.6"/>
+                                <stop offset="100%" stop-color="#7e0023" stop-opacity="0.6"/>
+                            </linearGradient>
                         </defs>
-                        <!-- Needle -->
-                        <g id="gauge-needle" transform="rotate(-90 130 140)">
-                            <line x1="130" y1="140" x2="130" y2="45" stroke="white" stroke-width="2.5" stroke-linecap="round"/>
-                            <circle cx="130" cy="140" r="6" fill="white"/>
-                            <circle cx="130" cy="140" r="3" fill="#0d0d14"/>
+
+                        <!-- Background radial glow -->
+                        <ellipse cx="150" cy="175" rx="130" ry="80" fill="url(#bgGlow)" id="gauge-bg-glow"/>
+
+                        <!-- Outer decorative ring with rotating scanner dash -->
+                        <circle cx="150" cy="175" r="135" fill="none" stroke="rgba(255,255,255,0.03)" stroke-width="1"/>
+                        <circle id="scanner-ring" cx="150" cy="175" r="135" fill="none"
+                            stroke="rgba(245,158,11,0.4)" stroke-width="1"
+                            stroke-dasharray="30 820" stroke-dashoffset="0"
+                            stroke-linecap="round"/>
+
+                        <!-- Outer arc ring edge -->
+                        <circle cx="150" cy="175" r="120" fill="none" stroke="rgba(255,255,255,0.04)" stroke-width="0.5"/>
+
+                        <!-- Base track (dark) -->
+                        <path d="M 22 175 A 128 128 0 0 1 278 175"
+                              fill="none" stroke="#1a1a24" stroke-width="18" stroke-linecap="round"/>
+
+                        <!-- Gradient arc track (glow layer) -->
+                        <path d="M 22 175 A 128 128 0 0 1 278 175"
+                              fill="none" stroke="url(#arcGradGlow)" stroke-width="14"
+                              stroke-linecap="round" filter="url(#arc-glow)" opacity="0.5"/>
+
+                        <!-- Gradient arc track (solid layer) -->
+                        <path d="M 22 175 A 128 128 0 0 1 278 175"
+                              fill="none" stroke="url(#arcGrad)" stroke-width="10"
+                              stroke-linecap="round" opacity="0.9"/>
+
+                        <!-- Zone tick marks -->
+                        <!-- 50  = 18% across = ~32deg from left -->
+                        <line id="tick-0" x1="38"  y1="122" x2="44"  y2="131" stroke="#22c55e" stroke-width="1.5" opacity="0.5"/>
+                        <!-- 100 = 36% -->
+                        <line id="tick-1" x1="72"  y1="72"  x2="80"  y2="80"  stroke="#84cc16" stroke-width="1.5" opacity="0.5"/>
+                        <!-- 200 = 62% -->
+                        <line id="tick-2" x1="150" y1="48"  x2="150" y2="58"  stroke="#f59e0b" stroke-width="1.5" opacity="0.5"/>
+                        <!-- 300 = 80% -->
+                        <line id="tick-3" x1="228" y1="72"  x2="220" y2="80"  stroke="#ef4444" stroke-width="1.5" opacity="0.5"/>
+                        <!-- 400 = 92% -->
+                        <line id="tick-4" x1="262" y1="122" x2="256" y2="131" stroke="#a855f7" stroke-width="1.5" opacity="0.5"/>
+
+                        <!-- Zone LED dots on arc -->
+                        <circle id="led-0" cx="35"  cy="128" r="3.5" fill="#22c55e" opacity="0.3"/>
+                        <circle id="led-1" cx="75"  cy="76"  r="3.5" fill="#84cc16" opacity="0.3"/>
+                        <circle id="led-2" cx="150" cy="48"  r="3.5" fill="#f59e0b" opacity="0.3"/>
+                        <circle id="led-3" cx="225" cy="76"  r="3.5" fill="#ef4444" opacity="0.3"/>
+                        <circle id="led-4" cx="265" cy="128" r="3.5" fill="#a855f7" opacity="0.3"/>
+
+                        <!-- Zone labels -->
+                        <text x="16"  y="196" fill="#22c55e" font-size="8.5" font-weight="700" font-family="system-ui" opacity="0.75">Good</text>
+                        <text x="56"  y="60"  fill="#84cc16" font-size="7.5" font-weight="700" font-family="system-ui" opacity="0.65" text-anchor="middle">Sat.</text>
+                        <text x="150" y="36"  fill="#f59e0b" font-size="7.5" font-weight="700" font-family="system-ui" opacity="0.65" text-anchor="middle">Mod.</text>
+                        <text x="244" y="60"  fill="#ef4444" font-size="7.5" font-weight="700" font-family="system-ui" opacity="0.65" text-anchor="middle">Poor</text>
+                        <text x="278" y="196" fill="#a855f7" font-size="8.5" font-weight="700" font-family="system-ui" opacity="0.75" text-anchor="end">Severe</text>
+
+                        <!-- Needle group — rotates around center (150,175) -->
+                        <g id="gauge-needle" transform="rotate(-90 150 175)">
+                            <!-- Glow layer -->
+                            <line x1="150" y1="175" x2="150" y2="62"
+                                  stroke="white" stroke-width="4"
+                                  stroke-linecap="round"
+                                  filter="url(#neon-glow)"
+                                  id="needle-glow" opacity="0.4"/>
+                            <!-- Sharp needle -->
+                            <line x1="150" y1="175" x2="150" y2="65"
+                                  stroke="white" stroke-width="1.8"
+                                  stroke-linecap="round"
+                                  id="needle-line"/>
+                            <!-- Tail -->
+                            <line x1="150" y1="175" x2="150" y2="190"
+                                  stroke="rgba(255,255,255,0.25)" stroke-width="1.2"
+                                  stroke-linecap="round"/>
+                            <!-- Base dot outer glow -->
+                            <circle cx="150" cy="175" r="10" fill="white" opacity="0.06" id="needle-base-glow"/>
+                            <!-- Base dot -->
+                            <circle cx="150" cy="175" r="5.5" fill="white" id="needle-base"/>
+                            <circle cx="150" cy="175" r="3"   fill="#0d0d14"/>
                         </g>
-                        <!-- AQI number in center -->
-                        <text id="gauge-number" x="130" y="118" text-anchor="middle" fill="white" font-size="36" font-weight="900" font-family="sans-serif">--</text>
-                        <!-- Labels -->
-                        <text x="18"  y="158" fill="#22c55e" font-size="8" font-weight="700">Good</text>
-                        <text x="100" y="150" fill="#f59e0b" font-size="8" font-weight="700">Moderate</text>
-                        <text x="200" y="158" fill="#ef4444" font-size="8" font-weight="700">Poor+</text>
+
+                        <!-- AQI number — centered in gauge -->
+                        <text id="gauge-number"
+                              x="150" y="148"
+                              text-anchor="middle"
+                              fill="white"
+                              font-size="42"
+                              font-weight="900"
+                              font-family="system-ui,sans-serif"
+                              letter-spacing="-1">--</text>
+
+                        <!-- "AQI" sub label -->
+                        <text x="150" y="164" text-anchor="middle"
+                              fill="rgba(255,255,255,0.3)"
+                              font-size="9" font-weight="600"
+                              font-family="system-ui" letter-spacing="3">AQI</text>
                     </svg>
                 </div>
 
@@ -810,6 +910,6 @@
     </div>
 </footer>
 
-<script src="{{ url_for('static', filename='script.js') }}?v=8"></script>
+<script src="{{ url_for('static', filename='script.js') }}?v=9"></script>
 </body>
 </html>
