@@ -1420,7 +1420,7 @@ footer {
     justify-content: center;
     gap: 0;
     padding: 0 10px;
-    transform: translateX(-8%);
+    transform: translateX(-15%);
 }
 .skyline-icon {
     flex-shrink: 0;
@@ -2332,4 +2332,111 @@ footer {
     margin-top: 4px;
     letter-spacing: 0.3px;
     font-style: italic;
+}
+
+/* ══════════════════════════════════════════════════
+   NEON ARC REACTOR GAUGE
+══════════════════════════════════════════════════ */
+.gauge-wrap {
+    width: 100%;
+    max-width: 320px;
+    position: relative;
+    filter: drop-shadow(0 0 20px rgba(245,158,11,0.12));
+    transition: filter 0.5s ease;
+}
+.gauge-result {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 28px 24px 20px;
+    width: 100%;
+    gap: 6px;
+}
+.gauge-city {
+    font-size: 11px; font-weight: 800;
+    letter-spacing: 3px; color: var(--muted);
+    text-transform: uppercase; margin-bottom: 2px;
+}
+.gauge-label {
+    font-size: 11px; color: var(--muted); margin-bottom: 4px;
+    letter-spacing: 0.5px;
+}
+.gauge-category {
+    font-size: 16px; font-weight: 800;
+    letter-spacing: 2px; margin-top: 0px;
+    padding: 8px 28px; border-radius: 20px;
+    border: 1px solid rgba(255,255,255,0.1);
+    background: rgba(255,255,255,0.03);
+    transition: all 0.4s ease;
+    text-transform: uppercase;
+}
+@keyframes gaugeAdvice {
+    from { opacity: 0; transform: translateY(8px); }
+    to   { opacity: 1; transform: translateY(0); }
+}
+.gauge-advice {
+    font-size: 12px; color: var(--text-sub);
+    text-align: center; margin-top: 8px;
+    padding: 10px 16px;
+    background: rgba(255,255,255,0.03);
+    border-radius: 10px;
+    border: 1px solid var(--border);
+    max-width: 320px;
+    line-height: 1.6;
+    animation: gaugeAdvice 0.5s 0.3s ease both;
+}
+
+/* Needle color transition */
+#gauge-needle line,
+#gauge-needle circle { transition: stroke 0.3s, fill 0.3s; }
+
+/* LED dots transition */
+#node-graph-svg circle,
+#gauge-svg circle[id^="led-"] {
+    transition: opacity 0.3s, r 0.2s;
+}
+
+/* Background glow breathe after landing */
+@keyframes gaugeBreath {
+    0%, 100% { opacity: 0.6; }
+    50%       { opacity: 1.0; }
+}
+
+/* Scanner ring spin */
+#scanner-ring {
+    transform-origin: 150px 175px;
+    transition: opacity 0.5s ease;
+}
+
+/* Number glow effect */
+#gauge-number {
+    transition: fill 0.3s ease;
+}
+
+/* Gauge placeholder */
+.gauge-placeholder {
+    display: flex; flex-direction: column;
+    align-items: center; gap: 10px;
+    text-align: center; padding: 40px 32px;
+    width: 100%;
+}
+.gauge-placeholder-icon {
+    font-size: 3rem;
+    animation: iconFloat 2.5s ease-in-out infinite;
+    filter: drop-shadow(0 0 12px rgba(245,158,11,0.5));
+}
+.gauge-placeholder-text {
+    font-size: 16px; font-weight: 700;
+    color: var(--text-sub);
+}
+.gauge-placeholder-sub {
+    font-size: 12px; color: var(--muted);
+}
+
+/* Result panel neon border glow on active */
+.pred-result-panel {
+    transition: border-color 0.5s ease, box-shadow 0.5s ease;
+}
+.pred-result-panel.active {
+    box-shadow: 0 0 40px rgba(245,158,11,0.08), inset 0 0 40px rgba(245,158,11,0.03);
 }
